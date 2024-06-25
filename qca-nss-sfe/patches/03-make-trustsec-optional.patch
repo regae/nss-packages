@@ -1,0 +1,761 @@
+--- a/Makefile
++++ b/Makefile
+@@ -60,6 +60,10 @@
+ ccflags-y += -DSFE_BRIDGE_VLAN_FILTERING_ENABLE
+ endif
+ 
++ifeq ($(SFE_TRUSTSEC_ENABLE),y)
++ccflags-y += -DSFE_TRUSTSEC_ENABLE
++endif
++
+ ifndef SFE_256M_PROFILE
+ ifndef SFE_16M_PROFILE
+ ccflags-y += -DSFE_IPSEC_ENABLE
+--- a/sfe.c
++++ b/sfe.c
+@@ -39,7 +39,9 @@
+ #include "sfe_pppoe.h"
+ #include "sfe_pppoe_mgr.h"
+ #include "sfe_vlan.h"
++#ifdef SFE_TRUSTSEC_ENABLE
+ #include "sfe_trustsec.h"
++#endif
+ #include "sfe_ipv4.h"
+ #include "sfe_ipv4_tcp.h"
+ #include "sfe_ipv6.h"
+@@ -751,6 +753,7 @@ static bool sfe_recv_parse_l2(struct net
+ 		return false;
+ 	}
+ 
++#ifdef SFE_TRUSTSEC_ENABLE
+ 	/*
+ 	 * Parse only trustsec packets
+ 	 */
+@@ -764,6 +767,7 @@ static bool sfe_recv_parse_l2(struct net
+ 			return false;
+ 		}
+ 	}
++#endif
+ 
+ 	/*
+ 	 * Parse only PPPoE session packets
+@@ -791,10 +795,12 @@ void sfe_recv_undo_parse_l2(struct net_d
+ 	 */
+ 	sfe_pppoe_undo_parse(skb, l2_info);
+ 
++#ifdef SFE_TRUSTSEC_ENABLE
+ 	/*
+ 	 * Trustsec undo
+ 	 */
+ 	sfe_trustsec_undo_parse(skb, l2_info);
++#endif
+ 
+ 	/*
+ 	 * VLAN undo
+--- a/sfe_ipv4_esp.c
++++ b/sfe_ipv4_esp.c
+@@ -30,7 +30,9 @@
+ #include "sfe_ipv4.h"
+ #include "sfe_ipv4_esp.h"
+ #include "sfe_vlan.h"
++#ifdef SFE_TRUSTSEC_ENABLE
+ #include "sfe_trustsec.h"
++#endif
+ 
+ /*
+  * sfe_ipv4_recv_esp()
+@@ -126,6 +128,7 @@ int sfe_ipv4_recv_esp(struct sfe_ipv4 *s
+ 		return 0;
+ 	}
+ 
++#ifdef SFE_TRUSTSEC_ENABLE
+ 	/*
+ 	 * Do we expect a trustsec header for this flow ?
+ 	 */
+@@ -135,6 +138,7 @@ int sfe_ipv4_recv_esp(struct sfe_ipv4 *s
+ 		DEBUG_TRACE("Trustsec SGT mismatch. skb=%px\n", skb);
+ 		return 0;
+ 	}
++#endif
+ 
+ 	/*
+ 	 * Check if skb was cloned. If it was, unclone it.
+--- a/sfe_ipv4_gre.c
++++ b/sfe_ipv4_gre.c
+@@ -32,7 +32,9 @@
+ #include "sfe_ipv4.h"
+ #include "sfe_pppoe.h"
+ #include "sfe_vlan.h"
++#ifdef SFE_TRUSTSEC_ENABLE
+ #include "sfe_trustsec.h"
++#endif
+ 
+ /*
+  * sfe_ipv4_recv_gre()
+@@ -172,6 +174,7 @@ int sfe_ipv4_recv_gre(struct sfe_ipv4 *s
+ 		return 0;
+ 	}
+ 
++#ifdef SFE_TRUSTSEC_ENABLE
+ 	/*
+ 	 * Do we expect a trustsec header for this flow ?
+ 	 */
+@@ -181,6 +184,7 @@ int sfe_ipv4_recv_gre(struct sfe_ipv4 *s
+ 		DEBUG_TRACE("Trustsec SGT mismatch. skb=%px\n", skb);
+ 		return 0;
+ 	}
++#endif
+ 
+ 	bridge_flow = !!(cm->flags & SFE_IPV4_CONNECTION_MATCH_FLAG_BRIDGE_FLOW);
+ 
+@@ -376,12 +380,14 @@ int sfe_ipv4_recv_gre(struct sfe_ipv4 *s
+ 		this_cpu_inc(si->stats_pcpu->pppoe_encap_packets_forwarded64);
+ 	}
+ 
++#ifdef SFE_TRUSTSEC_ENABLE
+ 	/*
+ 	 * For trustsec flows, add trustsec header before L2 header is added.
+ 	 */
+ 	if (unlikely(cm->flags & SFE_IPV4_CONNECTION_MATCH_FLAG_INSERT_EGRESS_TRUSTSEC_SGT)) {
+ 		sfe_trustsec_add_sgt(skb, &cm->egress_trustsec_hdr);
+ 	}
++#endif
+ 
+ 	/*
+ 	 * Check to see if we need to add VLAN tags
+--- a/sfe_ipv4_l2tpv3.c
++++ b/sfe_ipv4_l2tpv3.c
+@@ -29,7 +29,9 @@
+ #include "sfe_ipv4.h"
+ #include "sfe_pppoe.h"
+ #include "sfe_vlan.h"
++#ifdef SFE_TRUSTSEC_ENABLE
+ #include "sfe_trustsec.h"
++#endif
+ 
+ /*
+  * sfe_ipv4_recv_l2tpv3()
+@@ -124,6 +126,7 @@ int sfe_ipv4_recv_l2tpv3(struct sfe_ipv4
+ 		return 0;
+ 	}
+ 
++#ifdef SFE_TRUSTSEC_ENABLE
+ 	/*
+ 	 * Do we expect a trustsec header for this flow ?
+ 	 */
+@@ -133,6 +136,7 @@ int sfe_ipv4_recv_l2tpv3(struct sfe_ipv4
+ 		DEBUG_TRACE("Trustsec SGT mismatch. skb=%px\n", skb);
+ 		return 0;
+ 	}
++#endif
+ 
+ 	bridge_flow = !!(cm->flags & SFE_IPV4_CONNECTION_MATCH_FLAG_BRIDGE_FLOW);
+ 
+@@ -328,12 +332,14 @@ int sfe_ipv4_recv_l2tpv3(struct sfe_ipv4
+ 		this_cpu_inc(si->stats_pcpu->pppoe_encap_packets_forwarded64);
+ 	}
+ 
++#ifdef SFE_TRUSTSEC_ENABLE
+ 	/*
+ 	 * For trustsec flows, add trustsec header before L2 header is added.
+ 	 */
+ 	if (unlikely(cm->flags & SFE_IPV4_CONNECTION_MATCH_FLAG_INSERT_EGRESS_TRUSTSEC_SGT)) {
+ 		sfe_trustsec_add_sgt(skb, &cm->egress_trustsec_hdr);
+ 	}
++#endif
+ 
+ 	/*
+ 	 * Check to see if we need to add VLAN tags
+--- a/sfe_ipv4_pppoe_br.c
++++ b/sfe_ipv4_pppoe_br.c
+@@ -28,7 +28,9 @@
+ #include "sfe_ipv4.h"
+ #include "sfe_pppoe.h"
+ #include "sfe_vlan.h"
++#ifdef SFE_TRUSTSEC_ENABLE
+ #include "sfe_trustsec.h"
++#endif
+ 
+ /*
+  * sfe_ipv4_recv_pppoe_bridge()
+@@ -86,6 +88,7 @@ int sfe_ipv4_recv_pppoe_bridge(struct sf
+ 		return 0;
+ 	}
+ 
++#ifdef SFE_TRUSTSEC_ENABLE
+ 	/*
+ 	 * Do we expect a trustsec header for this flow ?
+ 	 */
+@@ -95,6 +98,7 @@ int sfe_ipv4_recv_pppoe_bridge(struct sf
+ 		DEBUG_TRACE("Trustsec SGT mismatch. skb=%px\n", skb);
+ 		return 0;
+ 	}
++#endif
+ 
+ 	/*
+ 	 * Check if skb has enough headroom to write L2 headers
+@@ -127,12 +131,14 @@ int sfe_ipv4_recv_pppoe_bridge(struct sf
+ 	xmit_dev = cm->xmit_dev;
+ 	skb->dev = xmit_dev;
+ 
++#ifdef SFE_TRUSTSEC_ENABLE
+ 	/*
+ 	 * For trustsec flows, add trustsec header before L2 header is added.
+ 	 */
+ 	if (unlikely(cm->flags & SFE_IPV4_CONNECTION_MATCH_FLAG_INSERT_EGRESS_TRUSTSEC_SGT)) {
+ 		sfe_trustsec_add_sgt(skb, &cm->egress_trustsec_hdr);
+ 	}
++#endif
+ 
+ 	/*
+ 	 * Check to see if we need to add VLAN tags
+--- a/sfe_ipv4_tcp.c
++++ b/sfe_ipv4_tcp.c
+@@ -30,7 +30,9 @@
+ #include "sfe_ipv4.h"
+ #include "sfe_pppoe.h"
+ #include "sfe_vlan.h"
++#ifdef SFE_TRUSTSEC_ENABLE
+ #include "sfe_trustsec.h"
++#endif
+ 
+ static uint8_t tso_clear_fixed_id __read_mostly;		/* TSO clear fixed id */
+ 
+@@ -300,6 +302,7 @@ int sfe_ipv4_recv_tcp(struct sfe_ipv4 *s
+ 		this_cpu_inc(si->stats_pcpu->bridge_vlan_passthorugh_forwarded64);
+ 	}
+ 
++#ifdef SFE_TRUSTSEC_ENABLE
+ 	/*
+ 	 * Do we expect a trustsec header for this flow ?
+ 	 */
+@@ -309,6 +312,7 @@ int sfe_ipv4_recv_tcp(struct sfe_ipv4 *s
+ 		DEBUG_TRACE("Trustsec SGT mismatch. skb=%px\n", skb);
+ 		return 0;
+ 	}
++#endif
+ 
+ 	bridge_flow = !!(cm->flags & SFE_IPV4_CONNECTION_MATCH_FLAG_BRIDGE_FLOW);
+ 
+@@ -799,12 +803,14 @@ int sfe_ipv4_recv_tcp(struct sfe_ipv4 *s
+ 	xmit_dev = cm->xmit_dev;
+ 	skb->dev = xmit_dev;
+ 
++#ifdef SFE_TRUSTSEC_ENABLE
+ 	/*
+ 	 * For trustsec flows, add trustsec header before L2 header is added.
+ 	 */
+ 	if (unlikely(cm->flags & SFE_IPV4_CONNECTION_MATCH_FLAG_INSERT_EGRESS_TRUSTSEC_SGT)) {
+ 		sfe_trustsec_add_sgt(skb, &cm->egress_trustsec_hdr);
+ 	}
++#endif
+ 
+ 	/*
+ 	 * Check to see if we need to add VLAN tags
+--- a/sfe_ipv4_tun6rd.c
++++ b/sfe_ipv4_tun6rd.c
+@@ -29,7 +29,9 @@
+ #include "sfe_flow_cookie.h"
+ #include "sfe_ipv4.h"
+ #include "sfe_vlan.h"
++#ifdef SFE_TRUSTSEC_ENABLE
+ #include "sfe_trustsec.h"
++#endif
+ 
+ /*
+  * sfe_ipv4_recv_tun6rd()
+@@ -135,6 +137,7 @@ int sfe_ipv4_recv_tun6rd(struct sfe_ipv4
+ 			return 0;
+ 		}
+ 
++#ifdef SFE_TRUSTSEC_ENABLE
+ 		/*
+ 		 * Do we expect a trustsec header for this flow ?
+ 		 */
+@@ -144,6 +147,7 @@ int sfe_ipv4_recv_tun6rd(struct sfe_ipv4
+ 			DEBUG_TRACE("Trustsec SGT mismatch. skb=%px\n", skb);
+ 			return 0;
+ 		}
++#endif
+ 
+ 		skb_reset_network_header(skb);
+ 		skb_pull(skb, ihl);
+@@ -216,12 +220,14 @@ int sfe_ipv4_recv_tun6rd(struct sfe_ipv4
+ 
+ 	skb->dev = cm->xmit_dev;
+ 
++#ifdef SFE_TRUSTSEC_ENABLE
+ 	/*
+ 	 * For trustsec flows, add trustsec header before L2 header is added.
+ 	 */
+ 	if (unlikely(cm->flags & SFE_IPV4_CONNECTION_MATCH_FLAG_INSERT_EGRESS_TRUSTSEC_SGT)) {
+ 		sfe_trustsec_add_sgt(skb, &cm->egress_trustsec_hdr);
+ 	}
++#endif
+ 
+ 	/*
+ 	 * Check to see if we need to add VLAN tags
+--- a/sfe_ipv4_udp.c
++++ b/sfe_ipv4_udp.c
+@@ -31,7 +31,9 @@
+ #include "sfe_ipv4.h"
+ #include "sfe_pppoe.h"
+ #include "sfe_vlan.h"
++#ifdef SFE_TRUSTSEC_ENABLE
+ #include "sfe_trustsec.h"
++#endif
+ #include "sfe_ipv4_multicast.h"
+ 
+ /*
+@@ -285,6 +287,7 @@ int sfe_ipv4_recv_udp(struct sfe_ipv4 *s
+ 		this_cpu_inc(si->stats_pcpu->bridge_vlan_passthorugh_forwarded64);
+ 	}
+ 
++#ifdef SFE_TRUSTSEC_ENABLE
+ 	/*
+ 	 * Do we expect a trustsec header for this flow ?
+ 	 */
+@@ -294,6 +297,7 @@ int sfe_ipv4_recv_udp(struct sfe_ipv4 *s
+ 		DEBUG_TRACE("Trustsec SGT mismatch. skb=%px\n", skb);
+ 		return 0;
+ 	}
++#endif
+ 
+ 	bridge_flow = !!(cm->flags & SFE_IPV4_CONNECTION_MATCH_FLAG_BRIDGE_FLOW);
+ 
+@@ -623,12 +627,14 @@ int sfe_ipv4_recv_udp(struct sfe_ipv4 *s
+ 	xmit_dev = cm->xmit_dev;
+ 	skb->dev = xmit_dev;
+ 
++#ifdef SFE_TRUSTSEC_ENABLE
+ 	/*
+ 	 * For trustsec flows, add trustsec header before L2 header is added.
+ 	 */
+ 	if (unlikely(cm->flags & SFE_IPV4_CONNECTION_MATCH_FLAG_INSERT_EGRESS_TRUSTSEC_SGT)) {
+ 		sfe_trustsec_add_sgt(skb, &cm->egress_trustsec_hdr);
+ 	}
++#endif
+ 
+ 	/*
+ 	 * Check to see if we need to add VLAN tags
+--- a/sfe_ipv6_esp.c
++++ b/sfe_ipv6_esp.c
+@@ -30,7 +30,9 @@
+ #include "sfe_ipv6.h"
+ #include "sfe_ipv6_esp.h"
+ #include "sfe_vlan.h"
++#ifdef SFE_TRUSTSEC_ENABLE
+ #include "sfe_trustsec.h"
++#endif
+ 
+ /*
+  * sfe_ipv6_recv_esp()
+@@ -126,6 +128,7 @@ int sfe_ipv6_recv_esp(struct sfe_ipv6 *s
+ 		return 0;
+ 	}
+ 
++#ifdef SFE_TRUSTSEC_ENABLE
+ 	/*
+ 	 * Do we expect a trustsec header for this flow ?
+ 	 */
+@@ -135,6 +138,7 @@ int sfe_ipv6_recv_esp(struct sfe_ipv6 *s
+ 		DEBUG_TRACE("Trustsec SGT mismatch. skb=%px\n", skb);
+ 		return 0;
+ 	}
++#endif
+ 
+ 	/*
+ 	 * Check if skb was cloned. If it was, unclone it.
+--- a/sfe_ipv6_frag.c
++++ b/sfe_ipv6_frag.c
+@@ -54,7 +54,9 @@
+ #include "sfe_ipv6_esp.h"
+ #include "sfe_ipv6_frag.h"
+ #include "sfe_vlan.h"
++#ifdef SFE_TRUSTSEC_ENABLE
+ #include "sfe_trustsec.h"
++#endif
+ #include "sfe_ipv6_multicast.h"
+ #include "sfe_ipv6_frag.h"
+ 
+@@ -418,6 +420,7 @@ static int sfe_ipv6_frag_udp_forward(str
+ 		return 0;
+ 	}
+ 
++#ifdef SFE_TRUSTSEC_ENABLE
+ 	/*
+ 	 * Do we expect a trustsec header for this flow ?
+ 	 */
+@@ -426,6 +429,7 @@ static int sfe_ipv6_frag_udp_forward(str
+ 		DEBUG_TRACE("Trustsec SGT mismatch. skb=%px\n", skb);
+ 		return 0;
+ 	}
++#endif
+ 
+ 	/*
+ 	 * Source interface validate.
+@@ -719,12 +723,14 @@ static int sfe_ipv6_frag_udp_forward(str
+ 	xmit_dev = cm->xmit_dev;
+ 	skb->dev = xmit_dev;
+ 
++#ifdef SFE_TRUSTSEC_ENABLE
+ 	/*
+ 	 * For trustsec flows, add trustsec header before L2 header is added.
+ 	 */
+ 	if (unlikely(cm->flags & SFE_IPV6_CONNECTION_MATCH_FLAG_INSERT_EGRESS_TRUSTSEC_SGT)) {
+ 		sfe_trustsec_add_sgt(skb, &cm->egress_trustsec_hdr);
+ 	}
++#endif
+ 
+ 	/*
+ 	 * Check to see if we need to add VLAN tags
+--- a/sfe_ipv6_gre.c
++++ b/sfe_ipv6_gre.c
+@@ -31,7 +31,9 @@
+ #include "sfe_ipv6.h"
+ #include "sfe_pppoe.h"
+ #include "sfe_vlan.h"
++#ifdef SFE_TRUSTSEC_ENABLE
+ #include "sfe_trustsec.h"
++#endif
+ 
+ /*
+  * sfe_ipv6_recv_gre()
+@@ -97,6 +99,7 @@ int sfe_ipv6_recv_gre(struct sfe_ipv6 *s
+ 		return 0;
+ 	}
+ 
++#ifdef SFE_TRUSTSEC_ENABLE
+ 	/*
+ 	 * Do we expect a trustsec header for this flow ?
+ 	 */
+@@ -106,6 +109,7 @@ int sfe_ipv6_recv_gre(struct sfe_ipv6 *s
+ 		DEBUG_TRACE("Trustsec SGT mismatch. skb=%px\n", skb);
+ 		return 0;
+ 	}
++#endif
+ 
+ 	/*
+ 	 * Source interface validate.
+@@ -317,12 +321,14 @@ int sfe_ipv6_recv_gre(struct sfe_ipv6 *s
+ 		this_cpu_inc(si->stats_pcpu->pppoe_encap_packets_forwarded64);
+ 	}
+ 
++#ifdef SFE_TRUSTSEC_ENABLE
+ 	/*
+ 	 * For trustsec flows, add trustsec header before L2 header is added.
+ 	 */
+ 	if (unlikely(cm->flags & SFE_IPV6_CONNECTION_MATCH_FLAG_INSERT_EGRESS_TRUSTSEC_SGT)) {
+ 		sfe_trustsec_add_sgt(skb, &cm->egress_trustsec_hdr);
+ 	}
++#endif
+ 
+ 	/*
+ 	 * Check to see if we need to add VLAN tags
+--- a/sfe_ipv6_l2tpv3.c
++++ b/sfe_ipv6_l2tpv3.c
+@@ -30,7 +30,9 @@
+ #include "sfe_ipv6.h"
+ #include "sfe_pppoe.h"
+ #include "sfe_vlan.h"
++#ifdef SFE_TRUSTSEC_ENABLE
+ #include "sfe_trustsec.h"
++#endif
+ 
+ /*
+  * sfe_ipv6_recv_l2tpv3()
+@@ -86,6 +88,7 @@ int sfe_ipv6_recv_l2tpv3(struct sfe_ipv6
+ 		return 0;
+ 	}
+ 
++#ifdef SFE_TRUSTSEC_ENABLE
+ 	/*
+ 	 * Do we expect a trustsec header for this flow ?
+ 	 */
+@@ -95,6 +98,7 @@ int sfe_ipv6_recv_l2tpv3(struct sfe_ipv6
+ 		DEBUG_TRACE("Trustsec SGT mismatch. skb=%px\n", skb);
+ 		return 0;
+ 	}
++#endif
+ 
+ 	/*
+ 	 * Source interface validate.
+@@ -306,12 +310,14 @@ int sfe_ipv6_recv_l2tpv3(struct sfe_ipv6
+ 		this_cpu_inc(si->stats_pcpu->pppoe_encap_packets_forwarded64);
+ 	}
+ 
++#ifdef SFE_TRUSTSEC_ENABLE
+ 	/*
+ 	 * For trustsec flows, add trustsec header before L2 header is added.
+ 	 */
+ 	if (unlikely(cm->flags & SFE_IPV6_CONNECTION_MATCH_FLAG_INSERT_EGRESS_TRUSTSEC_SGT)) {
+ 		sfe_trustsec_add_sgt(skb, &cm->egress_trustsec_hdr);
+ 	}
++#endif
+ 
+ 	/*
+ 	 * Check to see if we need to add VLAN tags
+--- a/sfe_ipv6_pppoe_br.c
++++ b/sfe_ipv6_pppoe_br.c
+@@ -28,7 +28,9 @@
+ #include "sfe_ipv6.h"
+ #include "sfe_pppoe.h"
+ #include "sfe_vlan.h"
++#ifdef SFE_TRUSTSEC_ENABLE
+ #include "sfe_trustsec.h"
++#endif
+ 
+ /*
+  * sfe_ipv6_recv_pppoe_bridge()
+@@ -89,6 +91,7 @@ int sfe_ipv6_recv_pppoe_bridge(struct sf
+ 		return 0;
+ 	}
+ 
++#ifdef SFE_TRUSTSEC_ENABLE
+ 	/*
+ 	 * Do we expect a trustsec header for this flow ?
+ 	 */
+@@ -98,6 +101,7 @@ int sfe_ipv6_recv_pppoe_bridge(struct sf
+ 		DEBUG_TRACE("Trustsec SGT mismatch. skb=%px\n", skb);
+ 		return 0;
+ 	}
++#endif
+ 
+ 	/*
+ 	 * Check if skb has enough headroom to write L2 headers
+@@ -130,12 +134,14 @@ int sfe_ipv6_recv_pppoe_bridge(struct sf
+ 	xmit_dev = cm->xmit_dev;
+ 	skb->dev = xmit_dev;
+ 
++#ifdef SFE_TRUSTSEC_ENABLE
+ 	/*
+ 	 * For trustsec flows, add trustsec header before L2 header is added.
+ 	 */
+ 	if (unlikely(cm->flags & SFE_IPV6_CONNECTION_MATCH_FLAG_INSERT_EGRESS_TRUSTSEC_SGT)) {
+ 		sfe_trustsec_add_sgt(skb, &cm->egress_trustsec_hdr);
+ 	}
++#endif
+ 
+ 	/*
+ 	 * Check to see if we need to add VLAN tags
+--- a/sfe_ipv6_tcp.c
++++ b/sfe_ipv6_tcp.c
+@@ -30,7 +30,9 @@
+ #include "sfe_ipv6.h"
+ #include "sfe_pppoe.h"
+ #include "sfe_vlan.h"
++#ifdef SFE_TRUSTSEC_ENABLE
+ #include "sfe_trustsec.h"
++#endif
+ 
+ /*
+  * sfe_ipv6_process_tcp_option_sack()
+@@ -268,6 +270,7 @@ int sfe_ipv6_recv_tcp(struct sfe_ipv6 *s
+ 		this_cpu_inc(si->stats_pcpu->bridge_vlan_passthorugh_forwarded64);
+ 	}
+ 
++#ifdef SFE_TRUSTSEC_ENABLE
+ 	/*
+ 	 * Do we expect a trustsec header for this flow ?
+ 	 */
+@@ -277,6 +280,7 @@ int sfe_ipv6_recv_tcp(struct sfe_ipv6 *s
+ 		DEBUG_TRACE("Trustsec SGT mismatch. skb=%px\n", skb);
+ 		return 0;
+ 	}
++#endif
+ 
+ 	bridge_flow = !!(cm->flags & SFE_IPV6_CONNECTION_MATCH_FLAG_BRIDGE_FLOW);
+ 
+@@ -757,12 +761,14 @@ int sfe_ipv6_recv_tcp(struct sfe_ipv6 *s
+ 	xmit_dev = cm->xmit_dev;
+ 	skb->dev = xmit_dev;
+ 
++#ifdef SFE_TRUSTSEC_ENABLE
+ 	/*
+ 	 * For trustsec flows, add trustsec header before L2 header is added.
+ 	 */
+ 	if (unlikely(cm->flags & SFE_IPV6_CONNECTION_MATCH_FLAG_INSERT_EGRESS_TRUSTSEC_SGT)) {
+ 		sfe_trustsec_add_sgt(skb, &cm->egress_trustsec_hdr);
+ 	}
++#endif
+ 
+ 	/*
+ 	 * Check to see if we need to add VLAN tags
+--- a/sfe_ipv6_tunipip6.c
++++ b/sfe_ipv6_tunipip6.c
+@@ -29,7 +29,9 @@
+ #include "sfe_flow_cookie.h"
+ #include "sfe_ipv6.h"
+ #include "sfe_vlan.h"
++#ifdef SFE_TRUSTSEC_ENABLE
+ #include "sfe_trustsec.h"
++#endif
+ #include "sfe_pppoe.h"
+ 
+ /*
+@@ -163,6 +165,7 @@ int sfe_ipv6_recv_tunipip6(struct sfe_ip
+ 			return 0;
+ 		}
+ 
++#ifdef SFE_TRUSTSEC_ENABLE
+ 		/*
+ 		 * Do we expect a trustsec header for this flow ?
+ 		 */
+@@ -172,6 +175,7 @@ int sfe_ipv6_recv_tunipip6(struct sfe_ip
+ 			DEBUG_TRACE("Trustsec SGT mismatch. skb=%px\n", skb);
+ 			return 0;
+ 		}
++#endif
+ 
+ 		/*
+ 		 * For PPPoE packets, match server MAC and session id
+@@ -301,12 +305,14 @@ int sfe_ipv6_recv_tunipip6(struct sfe_ip
+ 		this_cpu_inc(si->stats_pcpu->pppoe_encap_packets_forwarded64);
+ 	}
+ 
++#ifdef SFE_TRUSTSEC_ENABLE
+ 	/*
+ 	 * For trustsec flows, add trustsec header before L2 header is added.
+ 	 */
+ 	if (unlikely(cm->flags & SFE_IPV6_CONNECTION_MATCH_FLAG_INSERT_EGRESS_TRUSTSEC_SGT)) {
+ 		sfe_trustsec_add_sgt(skb, &cm->egress_trustsec_hdr);
+ 	}
++#endif
+ 
+ 	/*
+ 	 * Check to see if we need to add VLAN tags
+--- a/sfe_ipv6_udp.c
++++ b/sfe_ipv6_udp.c
+@@ -31,7 +31,9 @@
+ #include "sfe_ipv6.h"
+ #include "sfe_pppoe.h"
+ #include "sfe_vlan.h"
++#ifdef SFE_TRUSTSEC_ENABLE
+ #include "sfe_trustsec.h"
++#endif
+ #include "sfe_ipv6_multicast.h"
+ #include "sfe_ipv6_frag.h"
+ 
+@@ -223,6 +225,7 @@ int sfe_ipv6_recv_udp(struct sfe_ipv6 *s
+ 		this_cpu_inc(si->stats_pcpu->bridge_vlan_passthorugh_forwarded64);
+ 	}
+ 
++#ifdef SFE_TRUSTSEC_ENABLE
+ 	/*
+ 	 * Do we expect a trustsec header for this flow ?
+ 	 */
+@@ -232,6 +235,7 @@ int sfe_ipv6_recv_udp(struct sfe_ipv6 *s
+ 		DEBUG_TRACE("Trustsec SGT mismatch. skb=%px\n", skb);
+ 		return 0;
+ 	}
++#endif
+ 
+ 	/*
+ 	 * Source interface validate.
+@@ -610,12 +614,14 @@ int sfe_ipv6_recv_udp(struct sfe_ipv6 *s
+ 	xmit_dev = cm->xmit_dev;
+ 	skb->dev = xmit_dev;
+ 
++#ifdef SFE_TRUSTSEC_ENABLE
+ 	/*
+ 	 * For trustsec flows, add trustsec header before L2 header is added.
+ 	 */
+ 	if (unlikely(cm->flags & SFE_IPV6_CONNECTION_MATCH_FLAG_INSERT_EGRESS_TRUSTSEC_SGT)) {
+ 		sfe_trustsec_add_sgt(skb, &cm->egress_trustsec_hdr);
+ 	}
++#endif
+ 
+ 	/*
+ 	 * Check to see if we need to add VLAN tags
+--- a/sfe_trustsec.h
++++ b/sfe_trustsec.h
+@@ -20,7 +20,7 @@
+ #ifndef __SFE_TRUSTSEC_H
+ #define __SFE_TRUSTSEC_H
+ 
+-#include <linux/if_trustsec.h>
++#include "if_trustsec.h"
+ 
+ /*
+  * sfe_trustsec_proto_hdr
+--- a/dev/null
++++ b/if_trustsec.h
+@@ -0,0 +1,78 @@
++/*
++ * trustsec.h
++ *	trustsec header definition
++ *
++ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
++ *
++ * Permission to use, copy, modify, and/or distribute this software for any
++ * purpose with or without fee is hereby granted, provided that the above
++ * copyright notice and this permission notice appear in all copies.
++ *
++ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
++ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
++ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
++ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
++ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
++ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
++ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
++ */
++
++#ifndef _LINUX_IF_TRUSTSEC_H_
++#define _LINUX_IF_TRUSTSEC_H_
++
++#define TRUSTSEC_HLEN	6			/* The additional bytes required by trustsec header. */
++#define ETH_P_TRSEC 0x8909			/* Protocol number for trustsec header. */
++
++#define TRUSTSEC_META_HDR_VERSION 0x1		/* Meta header version number. */
++#define TRUSTSEC_META_HDR_LEN 0x1		/* trustsec meta header length. */
++#define TRUSTSEC_PAYLOAD_LEN 0x0		/* Length of the payload. */
++#define TRUSTSEC_PAYLOAD_OPT_TYPE 0x0001	/* Option type field. */
++
++/*
++ * trustsec_hdr
++ *	Defines trustsec header
++ */
++struct trustsec_hdr {
++	u8 meta_hdr_ver;
++	u8 meta_hdr_len;
++#if defined(__BIG_ENDIAN_BITFIELD)
++	u16 payload_len:3;
++	u16 payload_opt_type :13;
++#else
++	u16 payload_opt_type :13;
++	u16 payload_len:3;
++#endif
++	__be16 sgt;
++};
++
++static inline struct trustsec_hdr *trustsec_get_hdr(const struct sk_buff *skb)
++{
++	return (struct trustsec_hdr *)skb_network_header(skb);
++}
++
++
++/**
++ * trustsec_insert_hdr - insert trustsec header
++ * @skb: skbuff to insert header
++ * @sgt: SGT value
++ *
++ * Inserts the trustsec header into @skb as part of the payload
++ * Returns a trustsec encapsulated skb.
++ *
++ * Updates skb->protocol to trustsec protocol number
++ * Caller must guarantee that the given SKB has enough headroom
++ */
++static inline void trustsec_insert_hdr(struct sk_buff *skb, __be16 sgt)
++{
++	struct trustsec_hdr *thdr;
++
++	thdr = (struct trustsec_hdr *)skb_push(skb, TRUSTSEC_HLEN);
++	thdr->meta_hdr_ver = TRUSTSEC_META_HDR_VERSION;
++	thdr->meta_hdr_len = TRUSTSEC_META_HDR_LEN;
++	thdr->payload_len = htons(TRUSTSEC_PAYLOAD_LEN);
++	thdr->payload_opt_type = htons(TRUSTSEC_PAYLOAD_OPT_TYPE);
++	thdr->sgt = sgt;
++	skb->protocol = htons(ETH_P_TRSEC);
++}
++
++#endif /* !(_LINUX_IF_TRUSTSEC_H_) */

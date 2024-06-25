@@ -1,0 +1,635 @@
+From 6c738abc6deb82a6710e172096e2dcded3726799 Mon Sep 17 00:00:00 2001
+From: Cemil Coskun <quic_ccoskun@quicinc.com>
+Date: Wed, 6 Apr 2022 16:29:43 -0700
+Subject: [PATCH] [qca-nss-drv] Add feature flags for default tasks
+
+Change-Id: I5abeeb9d4f7d288a48534f6806e54ed868f68ac0
+Signed-off-by: Cemil Coskun <quic_ccoskun@quicinc.com>
+---
+ Makefile          | 85 ++++++++++++++++++++++++++++++++---------------
+ nss_core.c        | 16 ++++++---
+ nss_core.h        |  9 +++++
+ nss_hal/nss_hal.c | 23 ++++++++++++-
+ nss_init.c        | 31 +++++++++++++++++
+ nss_rps.c         | 30 ++++++++++++-----
+ nss_stats.c       |  7 ++++
+ 7 files changed, 161 insertions(+), 40 deletions(-)
+
+--- a/Makefile
++++ b/Makefile
+@@ -16,21 +16,11 @@ qca-nss-drv-objs := \
+ 			nss_dynamic_interface.o \
+ 			nss_dynamic_interface_log.o \
+ 			nss_dynamic_interface_stats.o \
+-			nss_eth_rx.o \
+-			nss_eth_rx_stats.o \
+-			nss_eth_rx_strings.o \
+ 			nss_gmac_stats.o \
+ 			nss_if.o \
+ 			nss_if_log.o \
+ 			nss_init.o \
+-			nss_ipv4.o \
+-			nss_ipv4_stats.o \
+-			nss_ipv4_strings.o \
+-			nss_ipv4_log.o \
+ 			nss_log.o \
+-			nss_lso_rx.o \
+-			nss_lso_rx_stats.o \
+-			nss_lso_rx_strings.o \
+ 			nss_meminfo.o \
+ 			nss_n2h.o \
+ 			nss_n2h_stats.o \
+@@ -39,10 +29,6 @@ qca-nss-drv-objs := \
+ 			nss_pm.o \
+ 			nss_profiler.o \
+ 			nss_project.o \
+-			nss_pppoe.o \
+-			nss_pppoe_log.o \
+-			nss_pppoe_stats.o \
+-			nss_pppoe_strings.o \
+ 			nss_rps.o \
+ 			nss_stats.o \
+ 			nss_strings.o \
+@@ -51,19 +37,7 @@ qca-nss-drv-objs := \
+ 			nss_unaligned_log.o \
+ 			nss_unaligned_stats.o \
+ 			nss_virt_if.o \
+-			nss_virt_if_stats.o \
+-			nss_vlan.o \
+-			nss_vlan_log.o \
+-			nss_wifi.o \
+-			nss_wifi_log.o \
+-			nss_wifi_stats.o \
+-			nss_wifi_vdev.o \
+-			nss_wifili.o \
+-			nss_wifili_log.o \
+-			nss_wifili_stats.o \
+-			nss_wifili_strings.o \
+-			nss_wifi_mac_db.o
+-
++			nss_virt_if_stats.o
+ # Base NSS data plane/HAL support
+ qca-nss-drv-objs += nss_data_plane/nss_data_plane_common.o
+ qca-nss-drv-objs += nss_hal/nss_hal.o
+@@ -332,6 +306,61 @@ qca-nss-drv-objs += \
+ 			nss_udp_st_strings.o
+ endif
+ 
++ifneq "$(NSS_DRV_IPV4_ENABLE)" "n"
++ccflags-y += -DNSS_DRV_IPV4_ENABLE
++qca-nss-drv-objs += \
++			nss_ipv4.o \
++			nss_ipv4_stats.o \
++			nss_ipv4_strings.o \
++			nss_ipv4_log.o
++endif
++
++ifneq "$(NSS_DRV_ETH_RX_ENABLE)" "n"
++ccflags-y += -DNSS_DRV_ETH_RX_ENABLE
++qca-nss-drv-objs += \
++			nss_eth_rx.o \
++			nss_eth_rx_stats.o \
++			nss_eth_rx_strings.o
++endif
++
++ifneq "$(NSS_DRV_PPPOE_ENABLE)" "n"
++ccflags-y += -DNSS_DRV_PPPOE_ENABLE
++qca-nss-drv-objs += \
++			nss_pppoe.o \
++			nss_pppoe_log.o \
++			nss_pppoe_stats.o \
++			nss_pppoe_strings.o
++endif
++
++ifneq "$(NSS_DRV_WIFIOFFLOAD_ENABLE)" "n"
++ccflags-y += -DNSS_DRV_WIFIOFFLOAD_ENABLE
++qca-nss-drv-objs += \
++			nss_wifi.o \
++			nss_wifi_log.o \
++			nss_wifi_stats.o \
++			nss_wifi_vdev.o \
++			nss_wifili.o \
++			nss_wifili_log.o \
++			nss_wifili_stats.o \
++			nss_wifili_strings.o \
++			nss_wifi_mac_db.o
++endif
++
++ifneq "$(NSS_DRV_VLAN_ENABLE)" "n"
++ccflags-y += -DNSS_DRV_VLAN_ENABLE
++qca-nss-drv-objs += \
++			nss_vlan.o \
++			nss_vlan_log.o
++endif
++
++ifneq "$(NSS_DRV_LSO_RX_ENABLE)" "n"
++ccflags-y += -DNSS_DRV_LSO_RX_ENABLE
++qca-nss-drv-objs += \
++			nss_lso_rx.o \
++			nss_lso_rx_stats.o \
++			nss_lso_rx_strings.o
++endif
++
+ ifeq ($(SoC),$(filter $(SoC),ipq806x))
+ qca-nss-drv-objs += nss_data_plane/nss_data_plane_gmac.o \
+ 		    nss_hal/ipq806x/nss_hal_pvt.o
+@@ -496,6 +525,8 @@ ccflags-y += -I$(obj)/nss_hal/ipq50xx -D
+ endif
+ 
+ ccflags-y += -I$(obj)/nss_hal/include -I$(obj)/nss_data_plane/include -I$(obj)/exports -DNSS_DEBUG_LEVEL=0 -DNSS_PKT_STATS_ENABLED=1
++ccflags-y += -DNSS_DATA_PLANE_GENERIC_SUPPORT
++
+ ccflags-y += -I$(obj)/nss_data_plane/hal/include
+ ccflags-y += -DNSS_PM_DEBUG_LEVEL=0 -DNSS_SKB_REUSE_SUPPORT=1
+ ccflags-y += -Wall -Werror
+--- a/nss_core.c
++++ b/nss_core.c
+@@ -1,9 +1,12 @@
+ /*
+  **************************************************************************
+  * Copyright (c) 2013-2021, The Linux Foundation. All rights reserved.
++ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
++ *
+  * Permission to use, copy, modify, and/or distribute this software for
+  * any purpose with or without fee is hereby granted, provided that the
+  * above copyright notice and this permission notice appear in all copies.
++ *
+  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+  * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+@@ -34,7 +37,10 @@
+ #endif
+ #include <linux/etherdevice.h>
+ #include "nss_tx_rx_common.h"
++
++#ifdef NSS_DATA_PLANE_GENERIC_SUPPORT
+ #include "nss_data_plane.h"
++#endif
+ 
+ #define NSS_CORE_JUMBO_LINEAR_BUF_SIZE 128
+ 
+@@ -1724,18 +1730,21 @@ static void nss_core_init_nss(struct nss
+ 	/*
+ 	 * If nss core0 is up, then we are ready to hook to nss-gmac
+ 	 */
++#ifdef NSS_DATA_PLANE_GENERIC_SUPPORT
+ 	if (nss_data_plane_schedule_registration()) {
+ 
+ 		/*
+ 		 * Configure the maximum number of IPv4/IPv6
+ 		 * connections supported by the accelerator.
+ 		 */
++#ifdef NSS_DRV_IPV4_ENABLE
+ 		nss_ipv4_conn_cfg = max_ipv4_conn;
++		nss_ipv4_update_conn_count(max_ipv4_conn);
++#endif
+ #ifdef NSS_DRV_IPV6_ENABLE
+ 		nss_ipv6_conn_cfg = max_ipv6_conn;
+ 		nss_ipv6_update_conn_count(max_ipv6_conn);
+ #endif
+-		nss_ipv4_update_conn_count(max_ipv4_conn);
+ 
+ #ifdef NSS_MEM_PROFILE_LOW
+ 		/*
+@@ -1753,6 +1762,7 @@ static void nss_core_init_nss(struct nss
+ 		nss_ctx->state = NSS_CORE_STATE_UNINITIALIZED;
+ 		spin_unlock_bh(&nss_top->lock);
+ 	}
++#endif
+ }
+ 
+ /*
+--- a/nss_core.h
++++ b/nss_core.h
+@@ -1,9 +1,12 @@
+ /*
+  **************************************************************************
+  * Copyright (c) 2013-2021, The Linux Foundation. All rights reserved.
++ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
++ *
+  * Permission to use, copy, modify, and/or distribute this software for
+  * any purpose with or without fee is hereby granted, provided that the
+  * above copyright notice and this permission notice appear in all copies.
++ *
+  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+  * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+@@ -38,8 +41,10 @@
+ #include "nss_phys_if.h"
+ #include "nss_hlos_if.h"
+ #include "nss_oam.h"
++#ifdef NSS_DATA_PLANE_GENERIC_SUPPORT
+ #include "nss_data_plane.h"
+ #include "nss_gmac_stats.h"
++#endif
+ #include "nss_meminfo.h"
+ #include "nss_stats.h"
+ 
+@@ -663,8 +668,10 @@ struct nss_top_instance {
+ 	 */
+ 	atomic64_t stats_drv[NSS_DRV_STATS_MAX];
+ 					/* Hlos driver statistics */
++#ifdef NSS_DATA_PLANE_GENERIC_SUPPORT
+ 	uint64_t stats_gmac[NSS_MAX_PHYSICAL_INTERFACES][NSS_GMAC_STATS_MAX];
+ 					/* GMAC statistics */
++#endif
+ 	uint64_t stats_node[NSS_MAX_NET_INTERFACES][NSS_STATS_NODE_MAX];
+ 					/* IPv4 statistics per interface */
+ 	bool nss_hal_common_init_done;
+@@ -677,8 +684,10 @@ struct nss_top_instance {
+ 	 */
+ 	uint64_t last_rx_jiffies;	/* Time of the last RX message from the NA in jiffies */
+ 	struct nss_hal_ops *hal_ops;	/* nss_hal ops for this target platform */
++#ifdef NSS_DATA_PLANE_GENERIC_SUPPORT
+ 	struct nss_data_plane_ops *data_plane_ops;
+ 					/* nss_data_plane ops for this target platform */
++#endif
+ };
+ 
+ #if (NSS_PKT_STATS_ENABLED == 1)
+--- a/nss_hal/nss_hal.c
++++ b/nss_hal/nss_hal.c
+@@ -1,9 +1,12 @@
+ /*
+  **************************************************************************
+  * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
++ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
++ *
+  * Permission to use, copy, modify, and/or distribute this software for
+  * any purpose with or without fee is hereby granted, provided that the
+  * above copyright notice and this permission notice appear in all copies.
++ *
+  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+  * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+@@ -29,7 +32,9 @@
+ #include "nss_arch.h"
+ #include "nss_core.h"
+ #include "nss_tx_rx_common.h"
++#ifdef NSS_DATA_PLANE_GENERIC_SUPPORT
+ #include "nss_data_plane.h"
++#endif
+ #if (NSS_PM_SUPPORT == 1)
+ #include "nss_pm.h"
+ #endif
+@@ -359,6 +364,7 @@ int nss_hal_probe(struct platform_device
+ 	}
+ #endif
+ 
++#ifdef NSS_DRV_IPV4_ENABLE
+ 	if (npd->ipv4_enabled == NSS_FEATURE_ENABLED) {
+ 		nss_top->ipv4_handler_id = nss_dev->id;
+ 		nss_ipv4_register_handler();
+@@ -367,7 +373,11 @@ int nss_hal_probe(struct platform_device
+ 		nss_top->edma_handler_id = nss_dev->id;
+ 		nss_edma_register_handler();
+ #endif
++
++#ifdef NSS_DRV_ETH_RX_ENABLE
+ 		nss_eth_rx_register_handler(nss_ctx);
++#endif
++
+ #ifdef NSS_DRV_LAG_ENABLE
+ 		nss_lag_register_handler();
+ #endif
+@@ -381,6 +391,7 @@ int nss_hal_probe(struct platform_device
+ 		nss_top->dynamic_interface_table[NSS_DYNAMIC_INTERFACE_TYPE_GENERIC_REDIR_N2H] = nss_dev->id;
+ 		nss_top->dynamic_interface_table[NSS_DYNAMIC_INTERFACE_TYPE_GENERIC_REDIR_H2N] = nss_dev->id;
+ 	}
++#endif
+ 
+ #ifdef NSS_DRV_CAPWAP_ENABLE
+ 	if (npd->capwap_enabled == NSS_FEATURE_ENABLED) {
+@@ -465,10 +476,12 @@ int nss_hal_probe(struct platform_device
+ 	}
+ #endif
+ 
++#ifdef NSS_DRV_PPPOE_ENABLE
+ 	if (npd->pppoe_enabled == NSS_FEATURE_ENABLED) {
+ 		nss_top->pppoe_handler_id = nss_dev->id;
+ 		nss_pppoe_register_handler();
+ 	}
++#endif
+ 
+ #ifdef NSS_DRV_PPE_ENABLE
+ 	if (npd->ppe_enabled == NSS_FEATURE_ENABLED) {
+@@ -563,6 +576,7 @@ int nss_hal_probe(struct platform_device
+ 	}
+ #endif
+ 
++#ifdef NSS_DRV_WIFIOFFLOAD_ENABLE
+ 	if (npd->wifioffload_enabled == NSS_FEATURE_ENABLED) {
+ 		nss_top->wifi_handler_id = nss_dev->id;
+ 		nss_top->dynamic_interface_table[NSS_DYNAMIC_INTERFACE_TYPE_VAP] = nss_dev->id;
+@@ -593,6 +607,7 @@ int nss_hal_probe(struct platform_device
+ 		 */
+ 		nss_wifili_thread_scheme_db_init(nss_dev->id);
+ 	}
++#endif
+ 
+ #ifdef NSS_DRV_OAM_ENABLE
+ 	if (npd->oam_enabled == NSS_FEATURE_ENABLED) {
+@@ -609,11 +624,13 @@ int nss_hal_probe(struct platform_device
+ 	}
+ #endif
+ 
++#ifdef NSS_DRV_VLAN_ENABLE
+ 	if (npd->vlan_enabled == NSS_FEATURE_ENABLED) {
+ 		nss_top->vlan_handler_id = nss_dev->id;
+ 		nss_top->dynamic_interface_table[NSS_DYNAMIC_INTERFACE_TYPE_VLAN] = nss_dev->id;
+ 		nss_vlan_register_handler();
+ 	}
++#endif
+ 
+ #ifdef NSS_DRV_QVPN_ENABLE
+ #if defined(NSS_HAL_IPQ807x_SUPPORT) || defined(NSS_HAL_IPQ60XX_SUPPORT)
+@@ -714,7 +731,9 @@ int nss_hal_probe(struct platform_device
+ 		nss_freq_init_cpu_usage();
+ #endif
+ 
++#ifdef NSS_DRV_LSO_RX_ENABLE
+ 		nss_lso_rx_register_handler(nss_ctx);
++#endif
+ 	}
+ 
+ 	nss_top->frequency_handler_id = nss_dev->id;
+@@ -761,7 +780,7 @@ int nss_hal_probe(struct platform_device
+ 		nss_hal_enable_interrupt(nss_ctx, nss_ctx->int_ctx[i].shift_factor, NSS_HAL_SUPPORTED_INTERRUPTS);
+ 	}
+ 
+-	nss_info("%px: All resources initialized and nss core%d has been brought out of reset", nss_ctx, nss_dev->id);
++	nss_info_always("%px: All resources initialized and nss core%d has been brought out of reset", nss_ctx, nss_dev->id);
+ 	goto out;
+ 
+ err_register_irq:
+@@ -814,7 +833,9 @@ int nss_hal_remove(struct platform_devic
+ 	/*
+ 	 * nss-drv is exiting, unregister and restore host data plane
+ 	 */
++#ifdef NSS_DATA_PLANE_GENERIC_SUPPORT
+ 	nss_top->data_plane_ops->data_plane_unregister();
++#endif
+ 
+ #if (NSS_FABRIC_SCALING_SUPPORT == 1)
+ 	fab_scaling_unregister(nss_core0_clk);
+--- a/nss_init.c
++++ b/nss_init.c
+@@ -1,9 +1,12 @@
+ /*
+  **************************************************************************
+  * Copyright (c) 2013-2021, The Linux Foundation. All rights reserved.
++ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
++ *
+  * Permission to use, copy, modify, and/or distribute this software for
+  * any purpose with or without fee is hereby granted, provided that the
+  * above copyright notice and this permission notice appear in all copies.
++ *
+  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+  * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+@@ -24,7 +27,9 @@
+ #include "nss_pm.h"
+ #endif
+ #include "nss_tx_rx_common.h"
++#ifdef NSS_DATA_PLANE_GENERIC_SUPPORT
+ #include "nss_data_plane.h"
++#endif
+ #include "nss_capwap.h"
+ #include "nss_strings.h"
+ 
+@@ -655,14 +660,18 @@ static int __init nss_init(void)
+ #if defined(NSS_HAL_IPQ806X_SUPPORT)
+ 	if (of_machine_is_compatible("qcom,ipq8064") || of_machine_is_compatible("qcom,ipq8062")) {
+ 		nss_top_main.hal_ops = &nss_hal_ipq806x_ops;
++#ifdef NSS_DATA_PLANE_GENERIC_SUPPORT
+ 		nss_top_main.data_plane_ops = &nss_data_plane_gmac_ops;
++#endif
+ 		nss_top_main.num_nss = 2;
+ 	}
+ #endif
+ #if defined(NSS_HAL_IPQ807x_SUPPORT)
+ 	if (of_machine_is_compatible("qcom,ipq807x") || of_machine_is_compatible("qcom,ipq8074")) {
+ 		nss_top_main.hal_ops = &nss_hal_ipq807x_ops;
++#ifdef NSS_DATA_PLANE_GENERIC_SUPPORT
+ 		nss_top_main.data_plane_ops = &nss_data_plane_ops;
++#endif
+ #if defined(NSS_MEM_PROFILE_LOW)
+ 		nss_top_main.num_nss = 1;
+ #else
+@@ -673,21 +682,27 @@ static int __init nss_init(void)
+ #if defined(NSS_HAL_IPQ60XX_SUPPORT)
+ 	if (of_machine_is_compatible("qcom,ipq6018")) {
+ 		nss_top_main.hal_ops = &nss_hal_ipq60xx_ops;
++#ifdef NSS_DATA_PLANE_GENERIC_SUPPORT
+ 		nss_top_main.data_plane_ops = &nss_data_plane_ops;
++#endif
+ 		nss_top_main.num_nss = 1;
+ 	}
+ #endif
+ #if defined(NSS_HAL_IPQ50XX_SUPPORT)
+ 	if (of_machine_is_compatible("qcom,ipq5018")) {
+ 		nss_top_main.hal_ops = &nss_hal_ipq50xx_ops;
++#ifdef NSS_DATA_PLANE_GENERIC_SUPPORT
+ 		nss_top_main.data_plane_ops = &nss_data_plane_ops;
++#endif
+ 		nss_top_main.num_nss = 1;
+ 	}
+ #endif
+ #if defined(NSS_HAL_FSM9010_SUPPORT)
+ 	if (of_machine_is_compatible("qcom,fsm9010")) {
+ 		nss_top_main.hal_ops = &nss_hal_fsm9010_ops;
++#ifdef NSS_DATA_PLANE_GENERIC_SUPPORT
+ 		nss_top_main.data_plane_ops = &nss_data_plane_gmac_ops;
++#endif
+ 		nss_top_main.num_nss = 1;
+ 	}
+ #endif
+@@ -700,7 +715,9 @@ static int __init nss_init(void)
+ 	 * For banana, only ipq806x is supported
+ 	 */
+ 	nss_top_main.hal_ops = &nss_hal_ipq806x_ops;
++#ifdef NSS_DATA_PLANE_GENERIC_SUPPORT
+ 	nss_top_main.data_plane_ops = &nss_data_plane_gmac_ops;
++#endif
+ 	nss_top_main.num_nss = 2;
+ 
+ #endif /* NSS_DT_SUPPORT */
+@@ -709,10 +726,13 @@ static int __init nss_init(void)
+ 	/*
+ 	 * Initialize data_plane workqueue
+ 	 */
++
++#ifdef NSS_DATA_PLANE_GENERIC_SUPPORT
+ 	if (nss_data_plane_init_delay_work()) {
+ 		nss_warning("Error initializing nss_data_plane_workqueue\n");
+ 		return -EFAULT;
+ 	}
++#endif
+ 
+ 	/*
+ 	 * Enable spin locks
+@@ -739,7 +759,9 @@ static int __init nss_init(void)
+ 	/*
+ 	 * Registering sysctl for ipv4/6 specific config.
+ 	 */
++#ifdef NSS_DRV_IPV4_ENABLE
+ 	nss_ipv4_register_sysctl();
++#endif
+ #ifdef NSS_DRV_IPV6_ENABLE
+ 	nss_ipv6_register_sysctl();
+ #endif
+@@ -778,7 +800,9 @@ static int __init nss_init(void)
+ 	/*
+ 	 * Registering sysctl for pppoe specific config.
+ 	 */
++#ifdef NSS_DRV_PPPOE_ENABLE
+ 	nss_pppoe_register_sysctl();
++#endif
+ 
+ 	/*
+ 	 * Setup Runtime Sample values
+@@ -909,13 +933,17 @@ static void __exit nss_cleanup(void)
+ 	/*
+ 	 * Unregister pppoe specific sysctl
+ 	 */
++#ifdef NSS_DRV_PPPOE_ENABLE
+ 	nss_pppoe_unregister_sysctl();
++#endif
+ 
+ 	/*
+ 	 * Unregister ipv4/6 specific sysctl and free allocated to connection tables
+ 	 */
++#ifdef NSS_DRV_IPV4_ENABLE
+ 	nss_ipv4_unregister_sysctl();
+ 	nss_ipv4_free_conn_tables();
++#endif
+ 
+ #ifdef NSS_DRV_IPV6_ENABLE
+ 	nss_ipv6_unregister_sysctl();
+@@ -923,7 +951,10 @@ static void __exit nss_cleanup(void)
+ #endif
+ 
+ 	nss_project_unregister_sysctl();
++
++#ifdef NSS_DATA_PLANE_GENERIC_SUPPORT
+ 	nss_data_plane_destroy_delay_work();
++#endif
+ 
+ 	/*
+ 	 * cleanup ppe on supported platform
+--- a/nss_rps.c
++++ b/nss_rps.c
+@@ -1,9 +1,12 @@
+ /*
+  **************************************************************************
+  * Copyright (c) 2013-2017, 2019-2021 The Linux Foundation. All rights reserved.
++ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
++ *
+  * Permission to use, copy, modify, and/or distribute this software for
+  * any purpose with or without fee is hereby granted, provided that the
+  * above copyright notice and this permission notice appear in all copies.
++ *
+  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+  * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+@@ -278,6 +281,7 @@ static nss_tx_status_t nss_rps_cfg(struc
+ 	return NSS_SUCCESS;
+ }
+ 
++#ifdef NSS_DRV_IPV4_ENABLE
+ /*
+  * nss_rps_ipv4_hash_bitmap_cfg()
+  *	Send Message to NSS to configure hash_bitmap.
+@@ -306,6 +310,7 @@ static nss_tx_status_t nss_rps_ipv4_hash
+ 	up(&nss_rps_cfg_pvt.sem);
+ 	return NSS_SUCCESS;
+ }
++#endif
+ 
+ #ifdef NSS_DRV_IPV6_ENABLE
+ /*
+@@ -456,8 +461,8 @@ static int nss_rps_hash_bitmap_cfg_handl
+ 				void __user *buffer, size_t *lenp, loff_t *ppos)
+ {
+ 	struct nss_top_instance *nss_top = &nss_top_main;
+-	struct nss_ctx_instance *nss_ctx = &nss_top->nss[0];
+-	int ret, ret_ipv4, current_state;
++	struct nss_ctx_instance *nss_ctx __attribute__((unused)) = &nss_top->nss[0];
++	int ret, current_state;
+ 
+ 	current_state = nss_rps_hash_bitmap;
+ 	ret = proc_dointvec(ctl, write, buffer, lenp, ppos);
+@@ -471,16 +476,24 @@ static int nss_rps_hash_bitmap_cfg_handl
+ 		return ret;
+ 	}
+ 
++#if !defined(NSS_DRV_IPV4_ENABLE) || !defined(NSS_DRV_IPV6_ENABLE)
++	nss_info_always("%px: Feature is not supported\n", nss_ctx);
++	return 0;
++#else
+ 	if (nss_rps_hash_bitmap <= (NSS_RPS_MAX_CORE_HASH_BITMAP)) {
+ 		nss_info("Configuring NSS RPS hash_bitmap\n");
+-		ret_ipv4 = nss_rps_ipv4_hash_bitmap_cfg(nss_ctx, nss_rps_hash_bitmap);
++#ifdef NSS_DRV_IPV4_ENABLE
++		{
++			int ret_ipv4;
++			ret_ipv4 = nss_rps_ipv4_hash_bitmap_cfg(nss_ctx, nss_rps_hash_bitmap);
+ 
+-		if (ret_ipv4 != NSS_SUCCESS) {
+-			nss_warning("%px: ipv4 hash_bitmap config message failed\n", nss_ctx);
+-			nss_rps_hash_bitmap = current_state;
+-			return ret_ipv4;
++			if (ret_ipv4 != NSS_SUCCESS) {
++				nss_warning("%px: ipv4 hash_bitmap config message failed\n", nss_ctx);
++				nss_rps_hash_bitmap = current_state;
++				return ret_ipv4;
++			}
+ 		}
+-
++#endif
+ #ifdef NSS_DRV_IPV6_ENABLE
+ 		{
+ 			int ret_ipv6;
+@@ -501,6 +514,7 @@ static int nss_rps_hash_bitmap_cfg_handl
+ 
+ 	nss_info_always("Invalid input value. Valid values are less than %d\n", (NSS_RPS_MAX_CORE_HASH_BITMAP));
+ 	return ret;
++#endif
+ }
+ 
+ /* nss_rps_pri_map_cfg_handler()
+--- a/nss_stats.c
++++ b/nss_stats.c
+@@ -1,9 +1,12 @@
+ /*
+  **************************************************************************
+  * Copyright (c) 2013-2020, The Linux Foundation. All rights reserved.
++ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
++ *
+  * Permission to use, copy, modify, and/or distribute this software for
+  * any purpose with or without fee is hereby granted, provided that the
+  * above copyright notice and this permission notice appear in all copies.
++ *
+  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+  * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+@@ -389,7 +392,9 @@ void nss_stats_create_dentry(char *name,
+ /*
+  * gmac_stats_ops
+  */
++#ifdef NSS_DATA_PLANE_GENERIC_SUPPORT
+ NSS_STATS_DECLARE_FILE_OPERATIONS(gmac);
++#endif
+ 
+ /*
+  * wt_stats_ops
+@@ -444,7 +449,9 @@ void nss_stats_init(void)
+ 	/*
+ 	 * gmac_stats
+ 	 */
++#ifdef NSS_DATA_PLANE_GENERIC_SUPPORT
+ 	nss_stats_create_dentry("gmac", &nss_gmac_stats_ops);
++#endif
+ 
+ 	/*
+ 	 * Per-project stats

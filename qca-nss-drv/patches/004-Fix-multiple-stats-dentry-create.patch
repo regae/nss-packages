@@ -1,0 +1,120 @@
+From 616c927f1a83cfe8508c42441a5a4ead95dc1d8e Mon Sep 17 00:00:00 2001
+From: Aniruddha Bhat Anemajalu <quic_aanemaja@quicinc.com>
+Date: Tue, 20 Dec 2022 16:39:27 -0800
+Subject: [PATCH] [qca-nss-drv] Fix multiple stats dentry create
+
+We use one strings dentry for interfaces that run on
+both the cores. Second one is not needed.
+
+Change-Id: I50580b7a4b57ed10affdc608ff98b0c1b48a86c1
+Signed-off-by: Aniruddha Bhat Anemajalu <quic_aanemaja@quicinc.com>
+---
+ nss_c2c_rx.c            | 5 ++++-
+ nss_c2c_tx.c            | 5 ++++-
+ nss_dynamic_interface.c | 7 ++++++-
+ nss_n2h.c               | 8 +++++---
+ 4 files changed, 19 insertions(+), 6 deletions(-)
+
+--- a/nss_c2c_rx.c
++++ b/nss_c2c_rx.c
+@@ -1,9 +1,12 @@
+ /*
+  **************************************************************************
+  * Copyright (c) 2018-2020, The Linux Foundation. All rights reserved.
++ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
++ *
+  * Permission to use, copy, modify, and/or distribute this software for
+  * any purpose with or without fee is hereby granted, provided that the
+  * above copyright notice and this permission notice appear in all copies.
++ *
+  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+  * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+@@ -107,7 +110,7 @@ void nss_c2c_rx_register_handler(struct
+ 
+ 	if (nss_ctx->id == NSS_CORE_0) {
+ 		nss_c2c_rx_stats_dentry_create();
++		nss_c2c_rx_strings_dentry_create();
+ 	}
+-	nss_c2c_rx_strings_dentry_create();
+ }
+ EXPORT_SYMBOL(nss_c2c_rx_register_handler);
+--- a/nss_c2c_tx.c
++++ b/nss_c2c_tx.c
+@@ -1,9 +1,12 @@
+ /*
+  **************************************************************************
+  * Copyright (c) 2018-2020, The Linux Foundation. All rights reserved.
++ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
++ *
+  * Permission to use, copy, modify, and/or distribute this software for
+  * any purpose with or without fee is hereby granted, provided that the
+  * above copyright notice and this permission notice appear in all copies.
++ *
+  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+  * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+@@ -142,8 +145,8 @@ void nss_c2c_tx_register_handler(struct
+ 
+ 	if (nss_ctx->id == NSS_CORE_0) {
+ 		nss_c2c_tx_stats_dentry_create();
++		nss_c2c_tx_strings_dentry_create();
+ 	}
+-	nss_c2c_tx_strings_dentry_create();
+ }
+ EXPORT_SYMBOL(nss_c2c_tx_register_handler);
+ 
+--- a/nss_dynamic_interface.c
++++ b/nss_dynamic_interface.c
+@@ -1,9 +1,12 @@
+ /*
+  **************************************************************************
+  * Copyright (c) 2014-2020, The Linux Foundation. All rights reserved.
++ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
++ *
+  * Permission to use, copy, modify, and/or distribute this software for
+  * any purpose with or without fee is hereby granted, provided that the
+  * above copyright notice and this permission notice appear in all copies.
++ *
+  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+  * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+@@ -320,7 +323,9 @@ nss_tx_status_t nss_dynamic_interface_de
+ void nss_dynamic_interface_register_handler(struct nss_ctx_instance *nss_ctx)
+ {
+ 	nss_core_register_handler(nss_ctx, NSS_DYNAMIC_INTERFACE, nss_dynamic_interface_handler, NULL);
+-	nss_dynamic_interface_stats_dentry_create();
++	if (nss_ctx->id == NSS_CORE_0) {
++		nss_dynamic_interface_stats_dentry_create();
++	}
+ }
+ 
+ /*
+--- a/nss_n2h.c
++++ b/nss_n2h.c
+@@ -1,9 +1,12 @@
+ /*
+  **************************************************************************
+  * Copyright (c) 2013-2020, The Linux Foundation. All rights reserved.
++ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
++ *
+  * Permission to use, copy, modify, and/or distribute this software for
+  * any purpose with or without fee is hereby granted, provided that the
+  * above copyright notice and this permission notice appear in all copies.
++ *
+  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+  * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+@@ -2061,10 +2064,9 @@ void nss_n2h_register_handler(struct nss
+ 
+ 	if (nss_ctx->id == NSS_CORE_0) {
+ 		nss_n2h_stats_dentry_create();
++		nss_n2h_strings_dentry_create();
++		nss_drv_strings_dentry_create();
+ 	}
+-	nss_n2h_strings_dentry_create();
+-
+-	nss_drv_strings_dentry_create();
+ }
+ 
+ /*

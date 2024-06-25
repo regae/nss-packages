@@ -1,0 +1,258 @@
+From 8036f74cd59bf009b1cdb3cfe669c961e2fcc384 Mon Sep 17 00:00:00 2001
+From: Subhash Kumar Katnpally <skatnapa@codeaurora.org>
+Date: Fri, 18 Dec 2020 12:54:48 +0530
+Subject: [PATCH] [qca-nss-drv] Make ipv6 support configurable in drv.
+
+Added support to disable/enable ipv6 support for qca-nss-drv.
+
+Signed-off-by: Subhash Kumar Katnpally <skatnapa@codeaurora.org>
+Change-Id: Ic4589843643aaf5774bab124e5351b458f0047b6
+---
+ Makefile          | 19 ++++++++++++-------
+ nss_core.c        |  6 ++++--
+ nss_hal/nss_hal.c |  2 ++
+ nss_hlos_if.h     |  6 +++++-
+ nss_init.c        | 15 ++++++++-------
+ nss_ipv4.c        | 17 ++++++++++++++++-
+ nss_rps.c         | 28 +++++++++++++++++-----------
+ 7 files changed, 64 insertions(+), 29 deletions(-)
+
+--- a/Makefile
++++ b/Makefile
+@@ -32,13 +32,6 @@ qca-nss-drv-objs := \
+ 			nss_ipv4_reasm.o \
+ 			nss_ipv4_reasm_stats.o \
+ 			nss_ipv4_reasm_strings.o \
+-			nss_ipv6.o \
+-			nss_ipv6_stats.o \
+-			nss_ipv6_strings.o \
+-			nss_ipv6_log.o \
+-			nss_ipv6_reasm.o \
+-			nss_ipv6_reasm_stats.o \
+-			nss_ipv6_reasm_strings.o \
+ 			nss_log.o \
+ 			nss_lso_rx.o \
+ 			nss_lso_rx_stats.o \
+@@ -111,6 +104,18 @@ qca-nss-drv-objs += \
+ 			 nss_pvxlan_stats.o
+ endif
+ 
++ifneq "$(NSS_DRV_IPV6_ENABLE)" "n"
++ccflags-y += -DNSS_DRV_IPV6_ENABLE
++qca-nss-drv-objs += \
++			nss_ipv6.o \
++			nss_ipv6_stats.o \
++			nss_ipv6_strings.o \
++			nss_ipv6_log.o \
++			nss_ipv6_reasm.o \
++			nss_ipv6_reasm_stats.o \
++			nss_ipv6_reasm_strings.o
++endif
++
+ ifneq "$(NSS_DRV_TSTAMP_ENABLE)" "n"
+ ccflags-y += -DNSS_DRV_TSTAMP_ENABLE
+ qca-nss-drv-objs += \
+--- a/nss_core.c
++++ b/nss_core.c
+@@ -1,6 +1,6 @@
+ /*
+  **************************************************************************
+- * Copyright (c) 2013-2020, The Linux Foundation. All rights reserved.
++ * Copyright (c) 2013-2021, The Linux Foundation. All rights reserved.
+  * Permission to use, copy, modify, and/or distribute this software for
+  * any purpose with or without fee is hereby granted, provided that the
+  * above copyright notice and this permission notice appear in all copies.
+@@ -1731,9 +1731,11 @@ static void nss_core_init_nss(struct nss
+ 		 * connections supported by the accelerator.
+ 		 */
+ 		nss_ipv4_conn_cfg = max_ipv4_conn;
++#ifdef NSS_DRV_IPV6_ENABLE
+ 		nss_ipv6_conn_cfg = max_ipv6_conn;
+-		nss_ipv4_update_conn_count(max_ipv4_conn);
+ 		nss_ipv6_update_conn_count(max_ipv6_conn);
++#endif
++		nss_ipv4_update_conn_count(max_ipv4_conn);
+ 
+ #ifdef NSS_MEM_PROFILE_LOW
+ 		/*
+--- a/nss_hal/nss_hal.c
++++ b/nss_hal/nss_hal.c
+@@ -395,6 +395,7 @@ int nss_hal_probe(struct platform_device
+ 		nss_ipv4_reasm_register_handler();
+ 	}
+ 
++#ifdef NSS_DRV_IPV6_ENABLE
+ 	if (npd->ipv6_enabled == NSS_FEATURE_ENABLED) {
+ 		nss_top->ipv6_handler_id = nss_dev->id;
+ 		nss_ipv6_register_handler();
+@@ -404,6 +405,7 @@ int nss_hal_probe(struct platform_device
+ 		nss_top->ipv6_reasm_handler_id = nss_dev->id;
+ 		nss_ipv6_reasm_register_handler();
+ 	}
++#endif
+ 
+ #ifdef NSS_DRV_CRYPTO_ENABLE
+ 	/*
+--- a/nss_hlos_if.h
++++ b/nss_hlos_if.h
+@@ -1,6 +1,6 @@
+ /*
+  **************************************************************************
+- * Copyright (c) 2013-2019, The Linux Foundation. All rights reserved.
++ * Copyright (c) 2013-2019, 2021, The Linux Foundation. All rights reserved.
+  * Permission to use, copy, modify, and/or distribute this software for
+  * any purpose with or without fee is hereby granted, provided that the
+  * above copyright notice and this permission notice appear in all copies.
+@@ -33,7 +33,11 @@
+  */
+ #if defined (NSS_MEM_PROFILE_LOW)
+ #define NSS_DEFAULT_NUM_CONN			512		/* Default number of connections for IPv4 and IPv6 each, for low memory profile */
++#if defined (NSS_DRV_IPV6_ENABLE)
+ #define NSS_MAX_TOTAL_NUM_CONN_IPV4_IPV6	1024		/* MAX Connection shared between IPv4 and IPv6 for low memory profile */
++#else
++#define NSS_MAX_TOTAL_NUM_CONN_IPV4_IPV6	512		/* MAX Connection for IPv4 for low memory profile */
++#endif
+ #define NSS_LOW_MEM_EMPTY_POOL_BUF_SZ		4096		/* Default empty buffer pool size for low profile */
+ #elif defined (NSS_MEM_PROFILE_MEDIUM)
+ #define NSS_DEFAULT_NUM_CONN			2048		/* Default number of connections for IPv4 and IPv6 each, for medium memory profile */
+--- a/nss_init.c
++++ b/nss_init.c
+@@ -1,6 +1,6 @@
+ /*
+  **************************************************************************
+- * Copyright (c) 2013-2020, The Linux Foundation. All rights reserved.
++ * Copyright (c) 2013-2021, The Linux Foundation. All rights reserved.
+  * Permission to use, copy, modify, and/or distribute this software for
+  * any purpose with or without fee is hereby granted, provided that the
+  * above copyright notice and this permission notice appear in all copies.
+@@ -740,7 +740,9 @@ static int __init nss_init(void)
+ 	 * Registering sysctl for ipv4/6 specific config.
+ 	 */
+ 	nss_ipv4_register_sysctl();
++#ifdef NSS_DRV_IPV6_ENABLE
+ 	nss_ipv6_register_sysctl();
++#endif
+ 
+ 	/*
+ 	 * Registering sysctl for n2h specific config.
+@@ -910,16 +912,15 @@ static void __exit nss_cleanup(void)
+ 	nss_pppoe_unregister_sysctl();
+ 
+ 	/*
+-	 * Unregister ipv4/6 specific sysctl
++	 * Unregister ipv4/6 specific sysctl and free allocated to connection tables
+ 	 */
+ 	nss_ipv4_unregister_sysctl();
+-	nss_ipv6_unregister_sysctl();
+-
+-	/*
+-	 * Free Memory allocated for connection tables
+-	 */
+ 	nss_ipv4_free_conn_tables();
++
++#ifdef NSS_DRV_IPV6_ENABLE
++	nss_ipv6_unregister_sysctl();
+ 	nss_ipv6_free_conn_tables();
++#endif
+ 
+ 	nss_project_unregister_sysctl();
+ 	nss_data_plane_destroy_delay_work();
+--- a/nss_ipv4.c
++++ b/nss_ipv4.c
+@@ -70,6 +70,20 @@ static inline void nss_ipv4_dscp_map_usa
+ }
+ 
+ /*
++ * nss_ipv4_get_total_conn_count()
++ *	 Returns the sum of IPv4 and IPv6 connections.
++ */
++static uint32_t nss_ipv4_get_total_conn_count(int ipv4_num_conn)
++{
++
++#ifdef NSS_DRV_IPV6_ENABLE
++	return ipv4_num_conn + nss_ipv6_conn_cfg;
++#else
++	return ipv4_num_conn;
++#endif
++}
++
++/*
+  * nss_ipv4_rx_msg_handler()
+  *	Handle NSS -> HLOS messages for IPv4 bridge/route
+  */
+@@ -532,7 +546,8 @@ int nss_ipv4_update_conn_count(int ipv4_
+ 	 * Min. value should be at least 256 connections. This is the
+ 	 * minimum connections we will support for each of them.
+ 	 */
+-	sum_of_conn = ipv4_num_conn + nss_ipv6_conn_cfg;
++	sum_of_conn = nss_ipv4_get_total_conn_count(ipv4_num_conn);
++
+ 	if ((ipv4_num_conn & NSS_NUM_CONN_QUANTA_MASK) ||
+ 		(sum_of_conn > NSS_MAX_TOTAL_NUM_CONN_IPV4_IPV6) ||
+ 		(ipv4_num_conn < NSS_MIN_NUM_CONN)) {
+--- a/nss_rps.c
++++ b/nss_rps.c
+@@ -1,6 +1,6 @@
+ /*
+  **************************************************************************
+- * Copyright (c) 2013-2017, 2019-2020 The Linux Foundation. All rights reserved.
++ * Copyright (c) 2013-2017, 2019-2021 The Linux Foundation. All rights reserved.
+  * Permission to use, copy, modify, and/or distribute this software for
+  * any purpose with or without fee is hereby granted, provided that the
+  * above copyright notice and this permission notice appear in all copies.
+@@ -307,6 +307,7 @@ static nss_tx_status_t nss_rps_ipv4_hash
+ 	return NSS_SUCCESS;
+ }
+ 
++#ifdef NSS_DRV_IPV6_ENABLE
+ /*
+  * nss_rps_ipv6_hash_bitmap_cfg()
+  *	Send Message to NSS to configure hash_bitmap.
+@@ -335,6 +336,7 @@ static nss_tx_status_t nss_rps_ipv6_hash
+ 	up(&nss_rps_cfg_pvt.sem);
+ 	return NSS_SUCCESS;
+ }
++#endif
+ 
+ /*
+  * nss_rps_pri_map_cfg()
+@@ -455,7 +457,7 @@ static int nss_rps_hash_bitmap_cfg_handl
+ {
+ 	struct nss_top_instance *nss_top = &nss_top_main;
+ 	struct nss_ctx_instance *nss_ctx = &nss_top->nss[0];
+-	int ret, ret_ipv4, ret_ipv6, current_state;
++	int ret, ret_ipv4, current_state;
+ 
+ 	current_state = nss_rps_hash_bitmap;
+ 	ret = proc_dointvec(ctl, write, buffer, lenp, ppos);
+@@ -479,17 +481,21 @@ static int nss_rps_hash_bitmap_cfg_handl
+ 			return ret_ipv4;
+ 		}
+ 
+-		ret_ipv6 = nss_rps_ipv6_hash_bitmap_cfg(nss_ctx, nss_rps_hash_bitmap);
+-
+-		if (ret_ipv6 != NSS_SUCCESS) {
+-			nss_warning("%px: ipv6 hash_bitmap config message failed\n", nss_ctx);
+-			nss_rps_hash_bitmap = current_state;
+-			if (nss_rps_ipv4_hash_bitmap_cfg(nss_ctx, nss_rps_hash_bitmap != NSS_SUCCESS)) {
+-				nss_warning("%px: ipv4 and ipv6 have different hash_bitmaps.\n", nss_ctx);
++#ifdef NSS_DRV_IPV6_ENABLE
++		{
++			int ret_ipv6;
++			ret_ipv6 = nss_rps_ipv6_hash_bitmap_cfg(nss_ctx, nss_rps_hash_bitmap);
++
++			if (ret_ipv6 != NSS_SUCCESS) {
++				nss_warning("%px: ipv6 hash_bitmap config message failed\n", nss_ctx);
++				nss_rps_hash_bitmap = current_state;
++				if (nss_rps_ipv4_hash_bitmap_cfg(nss_ctx, nss_rps_hash_bitmap != NSS_SUCCESS)) {
++					nss_warning("%px: ipv4 and ipv6 have different hash_bitmaps.\n", nss_ctx);
++				}
++				return ret_ipv6;
+ 			}
+-			return ret_ipv6;
+ 		}
+-
++#endif
+ 		return 0;
+ 	}
+ 

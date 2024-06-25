@@ -1,0 +1,20 @@
+--- a/sfe_ipv6.c
++++ b/sfe_ipv6.c
+@@ -1085,7 +1085,7 @@ static bool sfe_ipv6_is_local_ip(struct 
+ 	struct in6_addr ip_addr;
+ 	memcpy(ip_addr.s6_addr, addr, 16);
+ 
+-#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 1, 0))
++#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 15, 0))
+ 	dev = ipv6_dev_find(&init_net, &ip_addr, 1);
+ #else
+ 	dev = ipv6_dev_find(&init_net, &ip_addr, NULL);
+@@ -1097,7 +1097,7 @@
+ 		 * The kernel api ipv6_dev_find() holds a reference in 5.4 kernel but
+ 		 * does not hold in 6.x kernel, hence dev_put is not necessary in 6.x kernel
+ 		 */
+-#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 1, 0))
++#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 15, 0))
+ 		dev_put(dev);
+ #endif
+ 		return true;

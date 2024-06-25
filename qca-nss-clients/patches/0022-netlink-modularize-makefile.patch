@@ -1,0 +1,272 @@
+--- a/netlink/Makefile
++++ b/netlink/Makefile
+@@ -1,6 +1,17 @@
++ifeq ($(SoC),$(filter $(SoC),ipq806x))
++override ipsecmgr:=n
++endif
++
+ CAPWAP_ENABLED := $(strip $(if $(filter $(capwapmgr), y), 1 , 0))
+ IPSEC_ENABLED := $(strip $(if $(filter $(ipsecmgr), y), 1 , 0))
+ DTLS_ENABLED := $(strip $(if $(filter $(dtlsmgr), y), 1 , 0))
++GRE_ENABLED := $(strip $(if $(filter $(gre), y), 1 , 0))
++UDP_ST_ENABLED := $(strip $(if $(filter $(netlink_udp_st), y), 1 , 0))
++OAM_ENABLED := $(strip $(if $(filter $(netlink_oam), y), 1 , 0))
++L2TPV2_ENABLED := $(strip $(if $(filter $(netlink_l2tpv2), y), 1 , 0))
++MAP_T_ENABLED := $(strip $(if $(filter $(netlink_map_t), y), 1 , 0))
++WIFILI_ENABLED := $(strip $(if $(filter $(netlink_wifili), y), 1 , 0))
++PPTP_ENABLED := $(strip $(if $(filter $(netlink_pptp), y), 1 , 0))
+ 
+ ccflags-y := -Wall -Werror
+ ccflags-y += -I$(obj)/include
+@@ -10,45 +21,66 @@ ccflags-y += -DNSS_CLIENT_BUILD_ID="$(BU
+ 
+ ccflags-y += -DCONFIG_NSS_NLIPV4=1
+ ccflags-y += -DCONFIG_NSS_NLIPV6=1
+-ccflags-y += -DCONFIG_NSS_NLOAM=1
+-ccflags-y += -DCONFIG_NSS_NLGRE_REDIR_FAMILY=1
++ccflags-y += -DCONFIG_NSS_NLOAM=$(OAM_ENABLED)
++ccflags-y += -DCONFIG_NSS_NLGRE_REDIR_FAMILY=$(GRE_ENABLED)
+ ccflags-y += -DCONFIG_NSS_NLETHRX=1
+ ccflags-y += -DCONFIG_NSS_NLDYNAMIC_INTERFACE=1
+ ccflags-y += -DCONFIG_NSS_NLN2H=1
+ ccflags-y += -DCONFIG_NSS_NLIPV4_REASM=1
+ ccflags-y += -DCONFIG_NSS_NLIPV6_REASM=1
+-ccflags-y += -DCONFIG_NSS_NLWIFILI=1
++ccflags-y += -DCONFIG_NSS_NLWIFILI=$(WIFILI_ENABLED)
+ ccflags-y += -DCONFIG_NSS_NLLSO_RX=1
+-ccflags-y += -DCONFIG_NSS_NLMAP_T=1
++ccflags-y += -DCONFIG_NSS_NLMAP_T=$(MAP_T_ENABLED)
+ ccflags-y += -DCONFIG_NSS_NLPPPOE=1
+-ccflags-y += -DCONFIG_NSS_NLL2TPV2=1
+-ccflags-y += -DCONFIG_NSS_NLPPTP=1
++ccflags-y += -DCONFIG_NSS_NLL2TPV2=$(L2TPV2_ENABLED)
++ccflags-y += -DCONFIG_NSS_NLPPTP=$(PPTP_ENABLED)
+ ccflags-y += -DCONFIG_NSS_NLCAPWAP=${CAPWAP_ENABLED}
+ ccflags-y += -DCONFIG_NSS_NLIPSEC=${IPSEC_ENABLED}
+ ccflags-y += -DCONFIG_NSS_NLDTLS=${DTLS_ENABLED}
+-ccflags-y += -DCONFIG_NSS_NLUDP_ST=1
++ccflags-y += -DCONFIG_NSS_NLUDP_ST=${UDP_ST_ENABLED}
+ 
+ qca-nss-netlink-objs := nss_nl.o
+-qca-nss-netlink-objs += nss_nlgre_redir_family.o
+-qca-nss-netlink-objs += nss_nlgre_redir_cmd.o
+-qca-nss-netlink-objs += nss_nlgre_redir_cmn.o
+-qca-nss-netlink-objs += nss_nlgre_redir.o
+-qca-nss-netlink-objs += nss_nlgre_redir_lag.o
+ qca-nss-netlink-objs += nss_nlipv4.o
+ qca-nss-netlink-objs += nss_nlipv6.o
+-qca-nss-netlink-objs += nss_nloam.o
+ qca-nss-netlink-objs += nss_nlethrx.o
+ qca-nss-netlink-objs += nss_nldynamic_interface.o
+ qca-nss-netlink-objs += nss_nln2h.o
+ qca-nss-netlink-objs += nss_nlipv4_reasm.o
+ qca-nss-netlink-objs += nss_nlipv6_reasm.o
+-qca-nss-netlink-objs += nss_nlwifili.o
+ qca-nss-netlink-objs += nss_nllso_rx.o
+-qca-nss-netlink-objs += nss_nlmap_t.o
+ qca-nss-netlink-objs += nss_nlpppoe.o
++
++ifneq (,$(filter $(WIFILI_ENABLED), y 1))
++qca-nss-netlink-objs += nss_nlwifili.o
++endif
++
++ifneq (,$(filter $(MAP_T_ENABLED), y 1))
++qca-nss-netlink-objs += nss_nlmap_t.o
++endif
++
++ifneq (,$(filter $(L2TPV2_ENABLED), y 1))
+ qca-nss-netlink-objs += nss_nll2tpv2.o
++endif
++
++ifneq (,$(filter $(PPTP_ENABLED), y 1))
+ qca-nss-netlink-objs += nss_nlpptp.o
++endif
++
++ifneq (,$(filter $(OAM_ENABLED), y 1))
++qca-nss-netlink-objs += nss_nloam.o
++endif
++
++ifneq (,$(filter $(GRE_ENABLED), y 1))
++qca-nss-netlink-objs += nss_nlgre_redir_family.o
++qca-nss-netlink-objs += nss_nlgre_redir_cmd.o
++qca-nss-netlink-objs += nss_nlgre_redir_cmn.o
++qca-nss-netlink-objs += nss_nlgre_redir.o
++qca-nss-netlink-objs += nss_nlgre_redir_lag.o
++endif
++
++ifneq (,$(filter $(UDP_ST_ENABLED), y 1))
+ qca-nss-netlink-objs += nss_nludp_st.o
++endif
+ 
+ ifneq (,$(filter $(capwapmgr), y))
+ qca-nss-netlink-objs += nss_nlcapwap.o
+--- a/netlink/nss_nlipv4.c
++++ b/netlink/nss_nlipv4.c
+@@ -336,6 +336,7 @@ static int nss_nlipv4_verify_conn_rule(s
+ 							tuple->return_ident, tuple->flow_ident);
+ 		break;
+ 
++#if (CONFIG_NSS_NLGRE_REDIR_FAMILY == 1)
+ 	case NSS_NL_IFTYPE_TUNNEL_GRE:
+ 		/*
+ 		 * Currently this implementation is only for gre_redir
+@@ -349,6 +350,7 @@ static int nss_nlipv4_verify_conn_rule(s
+ 
+ 		conn->flow_mtu = nss_nlgre_redir_cmd_get_mtu(flow_dev, NSS_GRE_REDIR_IP_HDR_TYPE_IPV4, conn->flow_interface_num);
+ 		break;
++#endif
+ 
+ 	case NSS_NL_IFTYPE_VLAN:
+ 		conn->flow_interface_num = nss_cmn_get_interface_number_by_dev(vlan_dev_real_dev(flow_dev));
+@@ -396,6 +398,7 @@ static int nss_nlipv4_verify_conn_rule(s
+ 							tuple->return_ident, tuple->flow_ident);
+ 		break;
+ 
++#if (CONFIG_NSS_NLGRE_REDIR_FAMILY == 1)
+ 	case NSS_NL_IFTYPE_TUNNEL_GRE:
+ 		conn->return_interface_num = nss_nlgre_redir_cmd_get_ifnum(return_dev, tuple->protocol);
+ 		if (conn->return_interface_num < 0 ) {
+@@ -406,6 +409,7 @@ static int nss_nlipv4_verify_conn_rule(s
+ 
+ 		conn->return_mtu = nss_nlgre_redir_cmd_get_mtu(return_dev, NSS_GRE_REDIR_IP_HDR_TYPE_IPV4, conn->return_interface_num);
+ 		break;
++#endif
+ 
+ 	case NSS_NL_IFTYPE_VLAN:
+ 		conn->return_interface_num = nss_cmn_get_interface_number_by_dev(vlan_dev_real_dev(return_dev));
+--- a/netlink/nss_nlipv6.c
++++ b/netlink/nss_nlipv6.c
+@@ -353,6 +353,7 @@ static int nss_nlipv6_verify_conn_rule(s
+ 							tuple->return_ident, tuple->flow_ident);
+ 		break;
+ 
++#if (CONFIG_NSS_NLGRE_REDIR_FAMILY == 1)
+ 	case NSS_NL_IFTYPE_TUNNEL_GRE:
+ 		conn->flow_interface_num = nss_nlgre_redir_cmd_get_ifnum(flow_dev, tuple->protocol);
+ 		if (conn->flow_interface_num < 0 ) {
+@@ -363,6 +364,7 @@ static int nss_nlipv6_verify_conn_rule(s
+ 
+ 		conn->flow_mtu = nss_nlgre_redir_cmd_get_mtu(flow_dev, NSS_GRE_REDIR_IP_HDR_TYPE_IPV6, conn->flow_interface_num);
+ 		break;
++#endif
+ 
+ 	case NSS_NL_IFTYPE_VLAN:
+ 		conn->flow_interface_num = nss_cmn_get_interface_number_by_dev(vlan_dev_real_dev(flow_dev));
+@@ -411,6 +413,7 @@ static int nss_nlipv6_verify_conn_rule(s
+ 							tuple->return_ident, tuple->flow_ident);
+ 		break;
+ 
++#if (CONFIG_NSS_NLGRE_REDIR_FAMILY == 1)
+ 	case NSS_NL_IFTYPE_TUNNEL_GRE:
+ 		conn->return_interface_num = nss_nlgre_redir_cmd_get_ifnum(return_dev, tuple->protocol);
+ 		if (conn->return_interface_num < 0 ) {
+@@ -421,6 +424,7 @@ static int nss_nlipv6_verify_conn_rule(s
+ 
+ 		conn->return_mtu = nss_nlgre_redir_cmd_get_mtu(return_dev, NSS_GRE_REDIR_IP_HDR_TYPE_IPV6, conn->return_interface_num);
+ 		break;
++#endif
+ 
+ 	case NSS_NL_IFTYPE_VLAN:
+ 		conn->return_interface_num = nss_cmn_get_interface_number_by_dev(vlan_dev_real_dev(return_dev));
+--- a/netlink/nss_nludp_st.h
++++ b/netlink/nss_nludp_st.h
+@@ -23,10 +23,10 @@
+ #ifndef __NSS_NLUDP_ST_H
+ #define __NSS_NLUDP_ST_H
+ 
++#if (CONFIG_NSS_NLUDP_ST == 1)
+ bool nss_nludp_st_init(void);
+ bool nss_nludp_st_exit(void);
+ 
+-#if defined(CONFIG_NSS_NLUDP_ST)
+ #define NSS_NLUDP_ST_INIT nss_nludp_st_init
+ #define NSS_NLUDP_ST_EXIT nss_nludp_st_exit
+ #else
+--- a/netlink/nss_nlgre_redir_family.h
++++ b/netlink/nss_nlgre_redir_family.h
+@@ -21,6 +21,7 @@
+ #ifndef __NSS_NLGRE_REDIR_FAMILY_H
+ #define __NSS_NLGRE_REDIR_FAMILY_H
+ 
++#if (CONFIG_NSS_NLGRE_REDIR_FAMILY == 1)
+ /*
+  * nss_nlgre_redir_family_init()
+  * 	To initialize the gre_redir module
+@@ -33,7 +34,6 @@ bool nss_nlgre_redir_family_init(void);
+  */
+ bool nss_nlgre_redir_family_exit(void);
+ 
+-#if defined(CONFIG_NSS_NLGRE_REDIR_FAMILY)
+ #define NSS_NLGRE_REDIR_FAMILY_INIT nss_nlgre_redir_family_init
+ #define NSS_NLGRE_REDIR_FAMILY_EXIT nss_nlgre_redir_family_exit
+ #else
+--- a/netlink/nss_nloam.h
++++ b/netlink/nss_nloam.h
+@@ -22,10 +22,10 @@
+ #ifndef __NSS_NLOAM_H
+ #define __NSS_NLOAM_H
+ 
++#if (CONFIG_NSS_NLOAM == 1)
+ bool nss_nloam_init(void);
+ bool nss_nloam_exit(void);
+ 
+-#if defined(CONFIG_NSS_NLOAM)
+ #define NSS_NLOAM_INIT nss_nloam_init
+ #define NSS_NLOAM_EXIT nss_nloam_exit
+ #else
+--- a/netlink/nss_nll2tpv2.h
++++ b/netlink/nss_nll2tpv2.h
+@@ -23,10 +23,10 @@
+ #ifndef __NSS_NLL2TPV2_H
+ #define __NSS_NLL2TPV2_H
+ 
++#if (CONFIG_NSS_NLL2TPV2 == 1)
+ bool nss_nll2tpv2_init(void);
+ bool nss_nll2tpv2_exit(void);
+ 
+-#if defined(CONFIG_NSS_NLL2TPV2)
+ #define NSS_NLL2TPV2_INIT nss_nll2tpv2_init
+ #define NSS_NLL2TPV2_EXIT nss_nll2tpv2_exit
+ #else
+--- a/netlink/nss_nlmap_t.h
++++ b/netlink/nss_nlmap_t.h
+@@ -23,10 +23,10 @@
+ #ifndef __NSS_NLMAP_T_H
+ #define __NSS_NLMAP_T_H
+ 
++#if (CONFIG_NSS_NLMAP_T == 1)
+ bool nss_nlmap_t_init(void);
+ bool nss_nlmap_t_exit(void);
+ 
+-#if defined(CONFIG_NSS_NLMAP_T)
+ #define NSS_NLMAP_T_INIT nss_nlmap_t_init
+ #define NSS_NLMAP_T_EXIT nss_nlmap_t_exit
+ #else
+--- a/netlink/nss_nlpptp.h
++++ b/netlink/nss_nlpptp.h
+@@ -23,10 +23,10 @@
+ #ifndef __NSS_NLPPTP_H
+ #define __NSS_NLPPTP_H
+ 
++#if (CONFIG_NSS_NLPPTP == 1)
+ bool nss_nlpptp_init(void);
+ bool nss_nlpptp_exit(void);
+ 
+-#if defined(CONFIG_NSS_NLPPTP)
+ #define NSS_NLPPTP_INIT nss_nlpptp_init
+ #define NSS_NLPPTP_EXIT nss_nlpptp_exit
+ #else
+--- a/netlink/nss_nlwifili.h
++++ b/netlink/nss_nlwifili.h
+@@ -23,10 +23,10 @@
+ #ifndef __NSS_NLWIFILI_H
+ #define __NSS_NLWIFILI_H
+ 
++#if (CONFIG_NSS_NLWIFILI == 1)
+ bool nss_nlwifili_init(void);
+ bool nss_nlwifili_exit(void);
+ 
+-#if defined(CONFIG_NSS_NLWIFILI)
+ #define NSS_NLWIFILI_INIT nss_nlwifili_init
+ #define NSS_NLWIFILI_EXIT nss_nlwifili_exit
+ #else

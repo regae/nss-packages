@@ -1,0 +1,11 @@
+--- a/exports/nss_dtlsmgr.h
++++ b/exports/nss_dtlsmgr.h
+@@ -134,7 +134,7 @@ enum nss_dtlsmgr_metadata_result {
+  * NSS DTLS manager cryptographic structure to represent key and its length.
+  */
+ struct nss_dtlsmgr_crypto_data {
+-	const uint8_t *data;		/**< Pointer to key or nonce. */
++	uint8_t *data;			/**< Pointer to key or nonce. */
+ 	uint16_t len;			/**< Length of the key. */
+ };
+ 
