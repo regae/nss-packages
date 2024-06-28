@@ -29,5 +29,5 @@ elif grep -q "fw4" "$FW_SCRIPT"; then
 
     nft add rule inet fw4 RATE-LIMIT limit rate 1000/second burst 1000 packets counter return
     nft add rule inet fw4 RATE-LIMIT counter drop
-    nft insert rule inet fw4 forward_wan ct state new counter jump RATE-LIMIT
+    nft add rule inet fw4 forward_wan ct state new counter jump RATE-LIMIT
 fi
